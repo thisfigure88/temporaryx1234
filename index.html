@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ONLY WINNERS SURVIVE</title>
+    <style>
+        /* Basic styles for body, images, and videos */
+        body {
+            margin: 0;
+            background-color: #000;
+            overflow: hidden;
+            cursor: none;
+        }
+        #mediaContainer img,
+        #mediaContainer video {
+            max-width: 90%;
+            max-height: 90%;
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.5s;
+        }
+        /* Navigation buttons */
+        .nav-button {
+            position: fixed;
+            top: 0;
+            width: 15%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0); /* Transparent */
+            border: none;
+            cursor: pointer;
+            font-size: 48px;
+            color: rgba(255, 255, 255, 0.5);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            z-index: 10;
+            transition: opacity 0.3s, color 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #leftButton {
+            left: 0;
+        }
+        #rightButton {
+            right: 0;
+        }
+        .nav-button:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        /* Visual feedback for key presses */
+        .nav-button.active {
+            color: #fff;
+        }
+        /* Loading spinner */
+        #spinner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 8px solid rgba(255, 255, 255, 0.3);
+            border-top: 8px solid #fff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            display: none;
+            z-index: 20;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* Show cursor when moving */
+        body.show-cursor {
+            cursor: default;
+        }
+        /* Music controls */
+        #musicControls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            z-index: 10;
+        }
+        #musicControls button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        #nowPlaying {
+            position: relative;
+            overflow: hidden;
+            width: 200px;
+            height: 24px;
+        }
+        #nowPlayingText {
+            position: absolute;
+            white-space: nowrap;
+            animation: marquee 10s linear infinite;
+            color: white;
+            font-family: monospace;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        #volumeSlider {
+            width: 100px;
+            margin-left: 10px;
+        }
+        /* Cursor auto-hide */
+        body.idle {
+            cursor: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="spinner"></div>
+    <div id="mediaContainer">
+        <img id="nftImage" alt="Only Winners Survive">
+        <video id="nftVideo" autoplay muted loop></video>
+    </div>
+    <!-- Navigation Buttons -->
+    <button id="leftButton" class="nav-button">&#x276E;</button>
+    <button id="rightButton" class="nav-button">&#x276F;</button>
+
+    <!-- Music Controls -->
+    <div id="musicControls" style="display: none;">
+        <button id="playPauseButton">⏯</button>
+        <button id="prevTrackButton">⏮</button>
+        <button id="nextTrackButton">⏭</button>
+        <button id="shuffleButton">🔀</button>
+        <button id="muteButton">🔊</button>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.01">
+        <div id="nowPlaying"><span id="nowPlayingText"></span></div>
+    </div>
+
+    <audio id="backgroundMusic"></audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const imgElement = document.getElementById('nftImage');
+            const videoElement = document.getElementById('nftVideo');
+            const spinner = document.getElementById('spinner');
+            const leftButton = document.getElementById('leftButton');
+            const rightButton = document.getElementById('rightButton');
+            const playPauseButton = document.getElementById('playPauseButton');
+            const muteButton = document.getElementById('muteButton');
+            const prevTrackButton = document.getElementById('prevTrackButton');
+            const nextTrackButton = document.getElementById('nextTrackButton');
+            const shuffleButton = document.getElementById('shuffleButton');
+            const nowPlayingText = document.getElementById('nowPlayingText');
+            const volumeSlider = document.getElementById('volumeSlider');
+            const backgroundMusic = document.getElementById('backgroundMusic');
+            const musicControls = document.getElementById('musicControls');
+
+            // Media Items
+            const onlyWinnersItems = [
+                // From onlyWinnersIds (images)
+                { url: "https://kg7k33rh4ymbcdxjntczdt4l5chpnmnzcc4xsh6qakiwud63lzxq.arweave.net/Ub6t7ifmGBEO6WzFkc-L6I72sbkQuXkf0AKRag_bXm8", type: 'image' },
+                { url: "https://ks4cazdwy43adnojrejdwhl2hglhmeebjrulua335g3mdmra7hxq.arweave.net/VLggZHbHNgG1yYkSOx16OZZ2EIFMaLoDe-m2wbIg-e8", type: 'image' },
+                { url: "https://sfiq2w2rbzq7j5ybkbs34nzkdu7jekxxtflm5dr2yofv5lhwtstq.arweave.net/kVENW1EOYfT3AVBlvjcqHT6SKveZVs6OOsOLXqz2nKc", type: 'image' },
+                { url: "https://xtj7q3iw3gldmphn732gsgjktzuuufjjb5tkqkojba4wdo5uheaa.arweave.net/vNP4bRbZljY87f70aRkqnmlKFSkPZqgpyQg5Ybu0OQA", type: 'image' },
+                { url: "https://g7dwx4p24iozhkgtdffbltohdtvkggqzvp2qirjgpyrv4zgkap7q.arweave.net/N8dr8friHZOo0xlKFc3HHOqjGhmr9QRFJn4jXmTKA_8", type: 'image' },
+                { url: "https://cawsd3wbrc5vwpejttbqp3dpjtyk74bokuxwthhctmldb4ia74na.arweave.net/EC0h7sGIu1s8iZzDB-xvTPCv8C5VL2mc4psWMPEA_xo", type: 'image' },
+                { url: "https://tukfav2z5dorztjcwabjvrhoheivkc4eblv4nn3fmhuzclesjhia.arweave.net/nRRQV1no3RzNIrACmsTuORFVC4QK68a3ZWHpkSySSdA", type: 'image' },
+                { url: "https://r2qtc475pkrikgvdbjcfegthsn6bi5gfcm5uxprhufbggc55iega.arweave.net/jqExc_16ooUaowpEUhpnk3wUdMUTO0u-J6FCYwu9QQw", type: 'image' },
+                { url: "https://ojoxncd6b6o6gm2wnujgn5ui64vqxelkfcfhacfzfi35oq274lrq.arweave.net/cl12iH4PneMzVm0SZvaI9ysLkWooinAIuSo310Nf4uM", type: 'image' },
+            ];
+
+            const variantItems = [
+                // From variantIds (images)
+                { url: "https://ob22ue2fsbnyeplncwj3far6wrxupnrzyy3o7d3rotnuipiknj5a.arweave.net/cHWqE0WQW4I9bRWTsoI-tG9HtjnGNu-PcXTbRD0Kano", type: 'image' },
+                { url: "https://hf2i35lpbq5x3ojb2wdm74qgtksd6hbuyfht7ng2dhw3gxx362mq.arweave.net/OXSN9W8MO325IdWGz_IGmqQ_HDTBTz-02hnts1779pk", type: 'image' },
+                { url: "https://g4ltc3be5lx2xute2367ynizy7upvrw2a442mox2jkv75juxydqq.arweave.net/NxcxbCTq76vSZNb9_DUZx-j6xtoHOaY6-kqr_qaXwOE", type: 'image' },
+                { url: "https://lhzdlj4mw7fxw7binge565fg3gbbaja2rct2fqu7tabvxjwrewqq.arweave.net/WfI1p4y3y3t8KGmJ33Sm2YIQJBqIp6LCn5gDW6bRJaE", type: 'image' },
+                { url: "https://japeuxzlyt4gnfl3prkphg3cp75cwniqotbxp26s5ailsgjpb4jq.arweave.net/SB5KXyvE-GaVe3xU85tif_orNRB0w3fr0ugQuRkvDxM", type: 'image' },
+                { url: "https://oeoyr6x6m4c3duleq7i24zwnnzaofrp4to6m22pzsplwmqd2ns3q.arweave.net/cR2I-v5nBbHRZIfRrmbNbkDixfybvM1p-ZPXZkB6bLc", type: 'image' },
+                { url: "https://mhf7tyqlvc6lewkl7lslqw2bi4xbiexygypdiyjqtpeuk5pu2qba.arweave.net/Ycv54guovLJZS_rkuFtBRy4UEvg2HjRhMJvJRXX01AI", type: 'image' },
+                { url: "https://qkkllwhi4ukcotjivaylplry3qk7fsgx67viwgz3wp5u5syqenbq.arweave.net/gpS12OjlFCdNKKgwt6443BXyyNf36osbO7P7TssQI0M", type: 'image' },
+                { url: "https://fwwe5o564ezlab5jvjx3mkz2hfj4k3755dqove54bqt2j2uf2ava.arweave.net/LaxOu77hMrAHqapvtis6OVPFb_3o4OqTvAwnpOqF0Co", type: 'image' },
+                { url: "https://z4yzulrituylfrk2k3sck2scwee5mnrif7thcmciur2cseocsaoa.arweave.net/zzGaLiidMLLFWlbkJWpCsQnWNigv5nEwSKR0KRHCkBw", type: 'image' },
+                { url: "https://hx3kn6erqgqwyjwdt3dijldyaqdiux7aats6qkgnvvnhzdspvgyq.arweave.net/Pfam-JGBoWwmw57GhKx4BAaKX-AE5egoza1afI5PqbE", type: 'image' },
+                { url: "https://3wlawu4gzems6t77j6vb4vylni47mtt6k2lk4t5m4i7t3laitx4a.arweave.net/3ZYLU4bJGS9P_0-qHlcLajn2Tn5Wlq5PrOI_PawInfg", type: 'image' },
+                { url: "https://oe2kvv3hqrsah3i4lbf6hdvudxsfwjciwqbphampemf474mnv3iq.arweave.net/cTSq12eEZAPtHFhL4460HeRbJEi0AvOBjyMLz_GNrtE", type: 'image' },
+                { url: "https://rgclmb6av5qbx3p7hgzyszt3ddpgrh5aojvu7u6ysmajhmkda57q.arweave.net/iYS2B8CvYBvt_zmziWZ7GN5on6Bya0_T2JMAk7FDB38", type: 'image' },
+                { url: "https://hqs5fvgpl2u6o75faig4l7yyznbqbj4ewvf4fyewahxtgf3seqoq.arweave.net/PCXS1M9eqed_pQINxf8Yy0MAp4S1S8LglgHvMxdyJB0", type: 'image' },
+                { url: "https://4jxjd472uvq645q7nz6neqzri3eac3doubwkdxanmnif4wttnpxa.arweave.net/4m6R8_qlYe52H2580kMxRsgBbG6gbKHcDWNQXlpza-4", type: 'image' },
+                { url: "https://d3u3aimlijofn3yo6q5caolxo4hergypkefcs45dj3mqntu2kw3q.arweave.net/HumwIYtCXFbvDvQ6IDl3dw5Imw9RCilzo07ZBs6aVbc", type: 'image' },
+                { url: "https://v4nwwvjy2t7uzskpmigpyubf2p6yb6guhlwy5xets6ztxa7b4dpa.arweave.net/rxtrVTjU_0zJT2IM_FAl0_2A-NQ67Y7ck5ezO4Ph4N4", type: 'image' },
+                { url: "https://bme2ejps6sbtudqylp55rtyks565zbml62jbyom42lymnnqqd4tq.arweave.net/CwmiJfL0gzoOGFv72M8Kl33chYv2khw5nNLwxrYQHyc", type: 'image' },
+                { url: "https://4ofvhq4q7up6apir6bl5yuv6iu4wi4krbtxhafo6eigrmhdr7oga.arweave.net/44tTw5D9H-A9EfBX3FK-RTlkcVEM7nAV3iINFhxx-4w", type: 'image' },
+                { url: "https://2jejep7bq3abrmnz6nco7c2zk6krex2pnn2vbpuwhaiphoheubka.arweave.net/0kiSP-GGwBixufNE74tZV5USX09rdVC-ljgQ87jkoFQ", type: 'image' },
+                { url: "https://ukwmrnnz52mek7jy27hx5eulnbi34fhtggou666sglygtsjofx2q.arweave.net/oqzItbnumEV9ONfPfpKLaFG-FPMxnU970jLwackuLfU", type: 'image' },
+                { url: "https://x26wjtpwvukxc3sfm2qi4haarigum5hf6dffbgzp3q7ypxmn72qa.arweave.net/vr1kzfatFXFuRWagjhwAig1GdOXwylCbL9w_h92N_qA", type: 'image' },
+                { url: "https://55z227piuiut7vwmviqobbjj4xdpqu26ijapimt4y4cf2ailzymq.arweave.net/73OtfeiiKT_WzKog4IUp5cb4U15CQPQyfMcEXQELzhk", type: 'image' },
+                { url: "https://bqwnwajhqcugjkquuwodrasevtfwbohm7e6aqk34ufpwx3r4oj2a.arweave.net/DCzbASeAqGSqFKWcOIJErMtguOz5PAgrfKFfa-48cnQ", type: 'image' },
+                { url: "https://l64mqshqdq2e57hvrstxtjkvall72d2r63os56knilqml2mgqq6a.arweave.net/X7jISPAcNE789YyneaVVAtf9D1H23S75TULgxemGhDw", type: 'image' },
+            ];
+
+            const videoItems = [
+                // From videoIds (videos)
+                { url: "https://jzt35hi6gwnbzsunyicnulp7ebfvy4oaq3haurqralue5gvmk2kq.arweave.net/Tme-nR41mhzKjcIE2i3_IEtcccCGzgpGEQLoTpqsVpU", type: 'video' },
+                { url: "https://k7a7b4lbp2cowloahju47nnui7hbelhsgqbmzxkbg2uhc4ucc3ra.arweave.net/V8Hw8WF-hOstwDppz7W0R84SLPI0AszdQTaocXKCFuI", type: 'video' },
+                { url: "https://qo22ciqsq7kfwwyufezmmvg5wom5k5z3mame3jwm5a7vt55kq5sq.arweave.net/g7WhIhKH1FtbFCkyxlTds5nVdztgGE2mzOg_Wfeqh2U", type: 'video' },
+                { url: "https://fkv6xubnfmor6ymf4acnln33lgea7q4d3vcrl7mbdabvghfxkmgq.arweave.net/Kqvr0C0rHR9hheAE1bd7WYgPw4PdRRX9gRgDUxy3Uw0", type: 'video' },
+                { url: "https://c64n6nburkctt565iosi2ucvdguqsvo5csxgmhbfa2n5hb6fevja.arweave.net/F7jfNDSKhTn33UOkjVBVGakJVd0UrmYcJQab04fFJVI", type: 'video' },
+                { url: "https://dya3dsokv5e5xfjrer3hru33kdesiwwruiov2tpolllf76x45xga.arweave.net/HgGxycqvSduVMSR2eNN7UMkkWtGiHV1N7lrWX_r87cw", type: 'video' },
+                { url: "https://namlbzpiquqf4p34mkorf5jkdh6qz2hpedcu7zgknfgxuipuoohq.arweave.net/aBiw5eiFIF4_fGKdEvUqGf0M6O8gxU_kymlNeiH0c48", type: 'video' },
+                { url: "https://yupursmlopzdzx4b4s5ryijxtrv5ov7iz7eylsbirdjcnglchlyq.arweave.net/xR9IyYtz8jzfgeS7HCE3nGvXV-jPyYXIKIjSJpliOvE", type: 'video' },
+                { url: "https://7bxubyehlihn2lln7c7kcxzqp5tcp2qofowb5n754l4y4qxduvpq.arweave.net/-G9A4IdaDt0tbfi-oV8wf2Yn6g4rrB63_eL5jkLjpV8", type: 'video' },
+            ];
+
+            // Interleave items to balance display
+            const maxLength = Math.max(onlyWinnersItems.length, variantItems.length, videoItems.length);
+            const mediaItems = [];
+
+            for (let i = 0; i < maxLength; i++) {
+                if (onlyWinnersItems[i]) mediaItems.push(onlyWinnersItems[i]);
+                if (variantItems[i]) mediaItems.push(variantItems[i]);
+                if (videoItems[i]) mediaItems.push(videoItems[i]);
+            }
+
+            let currentIndex = 0;
+            let currentTrackIndex = 0;
+            let isShuffle = false;
+            let musicPlaying = false;
+            let inputSequence = '';
+
+            function showSpinner() {
+                spinner.style.display = 'block';
+            }
+
+            function hideSpinner() {
+                spinner.style.display = 'none';
+            }
+
+            function loadMedia(index) {
+                showSpinner();
+
+                const mediaItem = mediaItems[index];
+                const { url, type } = mediaItem;
+
+                // Fade out current media
+                imgElement.style.opacity = 0;
+                videoElement.style.opacity = 0;
+
+                setTimeout(() => {
+                    // Hide both media elements initially
+                    imgElement.style.display = 'none';
+                    videoElement.style.display = 'none';
+
+                    if (type === 'image') {
+                        imgElement.src = '';
+                        imgElement.src = url;
+                        imgElement.onload = () => {
+                            hideSpinner();
+                            imgElement.style.display = 'block';
+                            imgElement.style.opacity = 1;
+                        };
+                        imgElement.onerror = () => {
+                            console.error('Failed to load image.');
+                            hideSpinner();
+                        };
+                    } else if (type === 'video') {
+                        videoElement.src = '';
+                        videoElement.src = url;
+                        videoElement.onloadeddata = () => {
+                            hideSpinner();
+                            videoElement.style.display = 'block';
+                            videoElement.style.opacity = 1;
+                        };
+                        videoElement.onerror = () => {
+                            console.error('Failed to load video.');
+                            hideSpinner();
+                        };
+                    }
+                }, 300); // Wait for fade-out transition
+            }
+
+            // Variables to store touch positions
+            let touchStartX = 0;
+            let touchEndX = 0;
+
+            function handleGesture() {
+                if (touchEndX < touchStartX - 50) {
+                    // Swipe left (next media)
+                    currentIndex = (currentIndex + 1) % mediaItems.length;
+                    loadMedia(currentIndex);
+                }
+                if (touchEndX > touchStartX + 50) {
+                    // Swipe right (previous media)
+                    currentIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+                    loadMedia(currentIndex);
+                }
+            }
+
+            // Touch event listeners for mobile
+            document.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, false);
+
+            document.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleGesture();
+            }, false);
+
+            // Visual feedback for key presses
+            function activateButton(button) {
+                button.classList.add('active');
+                setTimeout(() => {
+                    button.classList.remove('active');
+                }, 100); // Highlight duration
+            }
+
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    currentIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+                    loadMedia(currentIndex);
+                    activateButton(leftButton);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    currentIndex = (currentIndex + 1) % mediaItems.length;
+                    loadMedia(currentIndex);
+                    activateButton(rightButton);
+                }
+
+                // Implement cheat codes for secret content
+                inputSequence += e.key.toLowerCase();
+
+                Object.keys(secretImages).forEach(code => {
+                    if (inputSequence.endsWith(code)) {
+                        const secretUrl = secretImages[code];
+                        loadSecretMedia(secretUrl);
+                        inputSequence = '';
+                    }
+                });
+
+                // Activate music controls when 'music' is typed
+                if (inputSequence.endsWith('music')) {
+                    if (!musicPlaying) {
+                        musicControls.style.display = 'flex';
+                        playTrack(currentTrackIndex);
+                        musicPlaying = true;
+                    } else {
+                        backgroundMusic.pause();
+                        musicControls.style.display = 'none';
+                        musicPlaying = false;
+                    }
+                    inputSequence = '';
+                }
+
+                // Limit sequence length
+                if (inputSequence.length > 20) {
+                    inputSequence = inputSequence.slice(-20);
+                }
+            });
+
+            // Navigation buttons
+            leftButton.addEventListener('click', () => {
+                currentIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+                loadMedia(currentIndex);
+                activateButton(leftButton);
+            });
+
+            rightButton.addEventListener('click', () => {
+                currentIndex = (currentIndex + 1) % mediaItems.length;
+                loadMedia(currentIndex);
+                activateButton(rightButton);
+            });
+
+            // Show cursor when moving
+            let cursorTimeout;
+            function showCursor() {
+                document.body.classList.add('show-cursor');
+                clearTimeout(cursorTimeout);
+                cursorTimeout = setTimeout(() => {
+                    document.body.classList.remove('show-cursor');
+                }, 2000);
+            }
+            document.addEventListener('mousemove', showCursor);
+
+            // Music tracks with titles
+            const musicTracks = [
+                { url: "https://phxl4spdyqc3zm33m4wy37p77o7k5tfrwpfquyshanc3mnaua4uq.arweave.net/ee6-SePEBbyze2ctjf3_-76uzLGzywpiRwNFtjQUByk", title: "Byl0 - Fairweather" },
+                { url: "https://jschcucvlqr7q3yd6gpr5z4cwsw6kqdqyu33gw5crwveee6mxzgq.arweave.net/TIRxUFVcI_hvA_GfHueCtK3lQHDFN7Nboo2qQhPMvk0", title: "Byl0 - Ruthless" },
+                { url: "https://e3kyc536nqdjdljmrtzguseqoaboi7scvejsfhdnifo4s2f5mrhq.arweave.net/JtWBd35sBpGtLIzyakiQcALkfkKpEyKcbUFdyWi9ZE8", title: "Byl0 - Casino" },
+                { url: "https://6mgsjmb4hmhfwr4gd6uk6hfdtvoxr2obl2wot3crfaljlcolrleq.arweave.net/8w0ksDw7DltHhh-orxyjnV146cFerOnsUSgWlYnLisk", title: "Byl0 - WAGMI" },
+                { url: "https://xlhhpfvj2qghh6hc4owbi4i4unewcqvas6zkziyhhcmsby7g5xfq.arweave.net/us53lqnUDHP44uOsFHEco0lhQqCXsqyjBziZIOPm7cs", title: "The Candle Man - Chasin Ghosts" },
+                { url: "https://igvzxxrjk4iyq62zcitmwg7b5bxjkrvubpqnshn6lxnhbtwywqsa.arweave.net/Qaub3ilXEYh7WRImyxvh6G6VRrQL4Nkdvl3acM7YtCQ", title: "The Candle Man - Hype Kids" },
+                { url: "https://kmork6scamhqlm6uqrgsjjhg54d6xfhbcsipwrkpsmspy3dgufnq.arweave.net/Ux0VekIDDwWz1IRNJKTm7wfrlOEUkPtFT5Mk_GxmoVs", title: "The Candle Man - Under The Spotlight" },
+                { url: "https://oxov7iegfpkyjr32pgup6fvco6i7oogs5fe5qf675wpk5slsxz3q.arweave.net/dd1foIYr1YTHenmo_xaid5H3ONLpSdgX3-2erslyvnc", title: "Dip Drippah - Hype Kids (CandleMan Cover)" },
+                { url: "https://l4sbzbadghq2fu3vuvdhmph5qgnerzpsrawht5matc3bsgdymjea.arweave.net/XyQchAMx4aLTdaVGdjz9gZpI5fKILHn1gJi2GRh4Ykg", title: "Go Home - Winners Rise" },
+                { url: "https://hsppfh472huw35vxhmzbtsv53w2vzeimde7pbr6suqp7sumqqe5q.arweave.net/PJ7yn5_R6W32tzsyGcq93bVckQwZPvDH0qQf-VGQgTs", title: "Paperhand - Survive" },
+                { url: "https://dpuhnhxld3kkfk7kp6jrqaf4ce6bmvif53bk2rciibzcpzgniocq.arweave.net/G-h2nuse1KKr6n-TGAC8ETwWVQXuwq1ESEByJ-TNQ4U", title: "CloudGirl - Divide" },
+                { url: "https://wd7k7gcsxd3hr3zhrm625f3awiyxqsqjseubfuur35pb7bk5cpdq.arweave.net/sP6vmFK49njvJ4s9rpdgsjF4SgmRKBLSkd9eH4VdE8c", title: "CloudGirl - Shadow" },
+                { url: "https://hrheyrbg45spau3xvpgi2vsiptdfxwvtopagrfatmac3iyjdo7ja.arweave.net/PE5MRCbnZPBTd6vMjVZIfMZb2rNzwGiUE2AFtGEjd9I", title: "CloudGirl - Forgotten Sons" }
+            ];
+
+            function playTrack(index) {
+                const track = musicTracks[index];
+                backgroundMusic.src = track.url;
+                backgroundMusic.play();
+                nowPlayingText.textContent = track.title;
+                playPauseButton.textContent = '⏸';
+            }
+
+            playPauseButton.addEventListener('click', () => {
+                if (backgroundMusic.paused) {
+                    backgroundMusic.play();
+                    playPauseButton.textContent = '⏸';
+                } else {
+                    backgroundMusic.pause();
+                    playPauseButton.textContent = '▶';
+                }
+            });
+
+            muteButton.addEventListener('click', () => {
+                backgroundMusic.muted = !backgroundMusic.muted;
+                muteButton.textContent = backgroundMusic.muted ? '🔇' : '🔊';
+            });
+
+            volumeSlider.addEventListener('input', () => {
+                backgroundMusic.volume = volumeSlider.value;
+            });
+
+            nextTrackButton.addEventListener('click', () => {
+                if (isShuffle) {
+                    currentTrackIndex = Math.floor(Math.random() * musicTracks.length);
+                } else {
+                    currentTrackIndex = (currentTrackIndex + 1) % musicTracks.length;
+                }
+                playTrack(currentTrackIndex);
+            });
+
+            prevTrackButton.addEventListener('click', () => {
+                if (isShuffle) {
+                    currentTrackIndex = Math.floor(Math.random() * musicTracks.length);
+                } else {
+                    currentTrackIndex = (currentTrackIndex - 1 + musicTracks.length) % musicTracks.length;
+                }
+                playTrack(currentTrackIndex);
+            });
+
+            shuffleButton.addEventListener('click', () => {
+                isShuffle = !isShuffle;
+                shuffleButton.style.opacity = isShuffle ? '1' : '0.5';
+            });
+
+            backgroundMusic.addEventListener('ended', () => {
+                nextTrackButton.click();
+            });
+
+            // Secret Images
+            const secretImages = {
+                "brain": "https://pzn7c7cxrhg6plewhcugdsb5p4o7clpb3rhcshqnjkadcqzamfxa.arweave.net/flvxfFeJzeesljioYcg9fx3xLeHcTikeDUqAMUMgYW4",
+                "6529": "https://tivn7honsnbn33e7xkyznhtjupghlty4pp5hcwagk6kg5cdqprqa.arweave.net/mirfnc2TQt3sn7qxlp5po8x1zxx7-nFYBleUbohwfGA",
+                "baptism": "https://p6ifmkvnvlztwdiuqviobg6muh5xedtr4b2wwmunfnrjsis5sdlq.arweave.net/f5BWKq2q8zsNFIVQ4JvMoftyDnHgdWsyjStimSJdkNc",
+                "helium": "https://3d4whd3ntcm2p6yo4g5p4nzrbzpaf37yrupfrmao5yi7wjw2uqma.arweave.net/2Pljj22Ymaf7DuG6_jcxDl4C7_iNHliwDu4R-ybapBg",
+                "lines": "https://vspenc5q66w4pypqur7mwg6nsl4qve2dmfrixph2pqtcueccr4cq.arweave.net/rJ5Gi7D3rcfh8KR-yxvNkvkKk0NhYou8-nwmKhBCjwU",
+                "meatscapes": "https://nr3tnytml4ewe4ku7vcfqzt53ujo42boagm43kqdpfmyso5jhcgq.arweave.net/bHc24mxfCWJxVP1EWGZ93RLuaC4Bmc2qA3lZiTupOI0",
+                "medici": "https://h7fkd3ldgsn3abzznfn7frle3ejkre5iwd6wqgbgfhmzo6cuj5za.arweave.net/P8qh7WM0m7AHOWlb8sVk2RKok6iw_WgYJinZl3hUT3I",
+                "seize": "https://cwd6o2vkyl3vexbpgh7t6u5xzlj4ky757sabufx3fp5s2y3jbgla.arweave.net/FYfnaqrC91JcLzH_P1O3ytPFY_38gBoW-yv7LWNpCZY",
+                "nuke": "https://5twmkl6st3ey6zhe6n6tuuib4d7tbwdzjidahdk7fedgxl5guyvq.arweave.net/7OzFL9KeyY9k5PN9OlEB4P8w2HlKBgONXykGa6-mpis",
+                "help": "https://zdg45oqcoywdxwzqferhd2m6xw2kouc23pxcd2diahmgi4wdesaa.arweave.net/yM3OugJ2LDvbMCkicemevbSnUFrb7iHoaAHYZHLDJIA",
+                "gm": "https://4f5makooa7nw7itp4kf5ntxiftlapmkqbajbv2wnfodm2aahe7la.arweave.net/4XrAKc4H22-ib-KL1s7oLNYHsVAIEhrqzSuGzQAHJ9Y",
+                "maxis": "https://hmkll3bmiqphc5yamt4ry4fqkbwzptzh25mfl4w6t7o45xjbdb4a.arweave.net/OxS17CxEHnF3AGT5HHCwUG2XzyfXWFXy3p_dzt0hGHg"
+            };
+
+            function loadSecretMedia(url) {
+                showSpinner();
+
+                // Determine media type
+                const type = url.match(/\.(mp4|webm|ogg)$/i) ? 'video' : 'image';
+
+                // Fade out current media
+                imgElement.style.opacity = 0;
+                videoElement.style.opacity = 0;
+
+                setTimeout(() => {
+                    // Hide both media elements
+                    imgElement.style.display = 'none';
+                    videoElement.style.display = 'none';
+
+                    if (type === 'image') {
+                        imgElement.src = url;
+                        imgElement.onload = () => {
+                            hideSpinner();
+                            imgElement.style.display = 'block';
+                            imgElement.style.opacity = 1;
+                        };
+                        imgElement.onerror = () => {
+                            console.error('Failed to load secret image.');
+                            hideSpinner();
+                        };
+                    } else {
+                        videoElement.src = url;
+                        videoElement.onloadeddata = () => {
+                            hideSpinner();
+                            videoElement.style.display = 'block';
+                            videoElement.style.opacity = 1;
+                        };
+                        videoElement.onerror = () => {
+                            console.error('Failed to load secret video.');
+                            hideSpinner();
+                        };
+                    }
+                }, 300);
+            }
+
+            // Initialize
+            function initialize() {
+                loadMedia(currentIndex);
+                volumeSlider.value = backgroundMusic.volume;
+            }
+
+            initialize();
+        });
+    </script>
+</body>
+</html>
